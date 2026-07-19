@@ -46,29 +46,6 @@ a pre-authored sample contract instead so the flow still completes end to end.
 > The workspace clock is frozen at **July 19, 2026** so that relative dates
 > ("notice due in 13 days") stay meaningful.
 
-## Three flows to try
-
-**1. Upload → verify → alert → assign.**
-On Repository, drop any PDF into the upload zone. Watch it upload and extract, then
-open the new Nimbara Security contract — three terms were flagged low-confidence
-(including a 60-vs-30-day notice conflict with its order form). Confirm or correct
-them against the highlighted clauses, then open Tasks & Alerts: the verification
-task has resolved itself, the approval is recorded, and the contract's renewal
-alert is live — reassign it to anyone, or a whole team.
-
-**2. Ask a question → cited answers → the exact clause.**
-On Explore, ask *"Which vendor contracts have a liability cap below $1M?"* You get a
-computed answer plus the live contract set behind it — every value chips out to the
-exact sentence in the source document. Follow one into the contract to see the
-full document with every extracted span highlighted.
-
-**3. Portfolio → timeline → clause.**
-On Insights, skim the headline: $8.48M committed, one counterparty holding 30% of
-it. Then open the Obligations Timeline tab: renewals, notice cutoffs, expirations,
-and payments laid out across the next year. The red diamond is Cirravault — its
-non-renewal notice is due August 1, thirteen days out, and missing it locks in a
-new 36-month, ~$756K term. Click it, read the terms it rests on, and jump to the
-clause.
 
 ## How it's built
 
