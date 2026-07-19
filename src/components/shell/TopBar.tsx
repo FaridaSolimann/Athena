@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/shell/GlobalSearch";
+import { AiStatusPill } from "@/components/shell/AiStatusPill";
 
 const TITLES: Array<[prefix: string, title: string]> = [
   ["/insights", "Insights"],
@@ -26,6 +27,7 @@ export function TopBar() {
         <GlobalSearch />
       </div>
       <div className="flex min-w-32 items-center justify-end gap-3">
+        <AiStatusPill />
         <Avatar className="size-7">
           <AvatarFallback className="bg-accent text-[11px] font-semibold text-accent-foreground">
             PR

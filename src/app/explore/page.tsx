@@ -16,6 +16,7 @@ import { SUGGESTED_QUESTIONS } from "@/lib/explore/suggestions";
 import { ResultCard } from "@/components/explore/ResultCard";
 import { useEffectiveContracts } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
+import { reportAiReason, useUi } from "@/lib/ui";
 
 type Asked =
   | { plan: QueryPlan; engine: "gemini" | "fallback"; reason?: string }
@@ -71,9 +72,11 @@ function ExploreInner() {
         if (v.ok) {
           plan = v.plan;
           engine = "gemini";
+          useUi.getState().reportAiHealth("ok");
         }
       } else if (typeof data?.reason === "string") {
         reason = data.reason;
+        reportAiReason(reason);
       }
     } catch {
       // network/timeout — fall through to the matcher
@@ -138,9 +141,11 @@ function ExploreInner() {
       .then((data) => {
         if (requestId !== requestRef.current) return;
         const text = typeof data?.answer === "string" ? data.answer.trim() : null;
+        if (!text && data?.reason) reportAiReason(data.reason);
         // The numbers guardrail: prose with any figure not present in the
         // retrieved context is discarded in favor of the template.
         if (text && proseNumbersAreGrounded(text, context)) {
+          useUi.getState().reportAiHealth("ok");
           setProse({ text, forAnswer: templateAnswer });
         }
       })

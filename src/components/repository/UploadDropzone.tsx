@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CloudUpload, FileText, LoaderCircle } from "lucide-react";
 import { useOverlay } from "@/lib/store";
+import { reportAiReason, useUi } from "@/lib/ui";
 import { MockExtractionEngine } from "@/lib/extraction/mock-engine";
 import type { Contract } from "@/data/types";
 import { cn } from "@/lib/utils";
@@ -140,6 +141,7 @@ export function UploadDropzone() {
         if (data?.engine === "gemini" && looksLikeContract(data.contract)) {
           clearInterval(ticker);
           finishJob();
+          useUi.getState().reportAiHealth("ok");
           const c = data.contract as Contract;
           useOverlay.getState().addCustomContract(c);
           const low = c.fields.filter((f) => f.confidence < 0.75).length;
@@ -154,6 +156,7 @@ export function UploadDropzone() {
         // no key / unreadable / model error → the pre-authored queue keeps the
         // demo alive (documented in README)
         console.debug("[upload] falling back to queue:", data?.reason ?? "unknown");
+        reportAiReason(data?.reason);
         await fallbackToQueue();
       } catch (err) {
         console.debug("[upload] extract call failed:", err);
