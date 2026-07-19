@@ -443,6 +443,40 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
         )}
       </div>
 
+      {/* legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-[11.5px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--event-renewal)" /></svg>
+          Renewal
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="12" height="12"><path d="M 6 1 L 11 6 L 6 11 L 1 6 Z" fill="var(--event-notice)" /></svg>
+          Notice deadline
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="12" height="12"><path d="M 6 1 L 11 6 L 6 11 L 1 6 Z" fill="var(--trust-low)" /></svg>
+          Notice due within 14 days
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="12" height="12"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="var(--event-expiration)" /></svg>
+          Term ends
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="12" height="12">
+            <circle cx="6" cy="6" r="5" fill="none" stroke="var(--event-payment)" strokeWidth="1.6" />
+            <path d="M 3.8 6 l 1.6 1.7 l 2.9 -3.2" fill="none" stroke="var(--event-payment)" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          Payment due
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="14" height="14">
+            <circle cx="7" cy="7" r="6" fill="var(--card)" stroke="var(--muted-foreground)" strokeWidth="1.4" />
+            <text x="7" y="9.5" fontSize="7.5" fontWeight="700" fill="var(--foreground)" textAnchor="middle">3</text>
+          </svg>
+          Several events on close dates — click to zoom in
+        </span>
+      </div>
+
       {/* minimap */}
       <div className="px-1">
         <svg
