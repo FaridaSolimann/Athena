@@ -25,14 +25,17 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <div className="flex h-14 items-center gap-2.5 px-5">
+      <Link
+        href="/"
+        className="flex h-14 items-center gap-2.5 px-5 transition-opacity hover:opacity-80"
+      >
         <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <Landmark className="size-4" strokeWidth={2.2} />
         </div>
         <span className="text-[15px] font-semibold tracking-tight text-foreground">
           Athena
         </span>
-      </div>
+      </Link>
       <nav className="mt-2 flex flex-1 flex-col gap-0.5 px-3">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active =
