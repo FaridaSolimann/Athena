@@ -100,6 +100,7 @@ export function useEffectiveContracts(): EffectiveContract[] {
       .filter((c): c is Contract => !!c && UPLOAD_QUEUE.some((q) => q.id === c.id));
     // Fresh uploads surface at the top of the repository.
     const visible = [...customContracts, ...[...uploaded].reverse(), ...SEED_CONTRACTS];
+    const uploadedSet = new Set([...uploadedIds, ...customContracts.map((c) => c.id)]);
     return visible.map((contract) => ({
       contract,
       status: effectiveStatus(contract, verifications),
@@ -109,9 +110,9 @@ export function useEffectiveContracts(): EffectiveContract[] {
           verifications[f.id]?.status !== "confirmed" &&
           verifications[f.id]?.status !== "corrected"
       ).length,
-      uploaded: uploadedIds.includes(contract.id),
+      uploaded: uploadedSet.has(contract.id),
     }));
-  }, [verifications, uploadedIds]);
+  }, [verifications, uploadedIds, customContracts]);
 }
 
 export function useEffectiveContract(id: string):

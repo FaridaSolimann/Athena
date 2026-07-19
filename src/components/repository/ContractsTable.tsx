@@ -77,8 +77,22 @@ export function ContractsTable({ rows }: { rows: EffectiveContract[] }) {
               className="cursor-pointer"
             >
               <TableCell>
-                <p className="text-[13.5px] font-medium leading-tight">{r.contract.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{r.contract.counterparty}</p>
+                <p className="text-[13.5px] font-medium leading-tight">
+                  {r.contract.title}
+                  {r.uploaded && (
+                    <span className="ml-2 rounded-full bg-accent px-1.5 py-0.5 align-middle text-[10.5px] font-medium text-primary">
+                      Uploaded
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {r.contract.counterparty}
+                  {r.uploaded && (
+                    <span className="ml-1.5 text-[11px] text-muted-foreground/70">
+                      · {r.contract.document.filename}
+                    </span>
+                  )}
+                </p>
               </TableCell>
               <TableCell className="text-[13px] text-muted-foreground">{r.contract.type}</TableCell>
               <TableCell><StatusChip status={r.status} /></TableCell>
