@@ -5,7 +5,7 @@ import { typeMix, statusDistribution, lawBreakdown } from "@/lib/derive/insights
 import { TakeawayCard, Block } from "@/components/insights/TakeawayCard";
 import { ShareBar, RankedBars } from "@/components/insights/bars";
 import type { DrillTarget } from "@/components/insights/DrillSheet";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { fmtMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export function PortfolioTab({
       title,
       description,
       rows: ids.map((id) => {
-        const c = getContract(id)!;
+        const c = lookupContract(id)!;
         return {
           contractId: id,
           fieldIds: c.fields.filter((f) => f.key === fieldKey).map((f) => f.id),

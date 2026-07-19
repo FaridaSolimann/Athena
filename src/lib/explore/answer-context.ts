@@ -3,7 +3,8 @@
 // contract names, already-normalized field values, clause snippets, and any
 // code-computed aggregate. The model phrases; it never computes.
 import type { Contract } from "@/data/types";
-import { getContract, resolveSourceRef } from "@/data";
+import { resolveSourceRef } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { effectiveField } from "@/lib/selectors";
 import { fmtFieldValue, fmtMoneyFull } from "@/lib/format";
 import type { QueryPlan } from "@/lib/explore/plan";
@@ -40,7 +41,7 @@ export function buildAnswerContext(
 ): AnswerContext {
   const rows: AnswerContextRow[] = [];
   for (const row of exec.rows.slice(0, MAX_ROWS)) {
-    const contract = getContract(row.contractId);
+    const contract = lookupContract(row.contractId);
     if (!contract) continue;
 
     const values: { field: string; value: string }[] = [];

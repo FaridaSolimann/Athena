@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type {
   AssigneeRef,
   ApprovalStatus,
+  Contract,
   FieldValue,
   ISODate,
   Priority,
@@ -49,6 +50,8 @@ interface OverlayState {
   workItemOverrides: Record<string, WorkItemOverride>; // key = work item id
   manualItems: WorkItem[];
   uploadedContractIds: string[];
+  /** Contracts genuinely parsed from user uploads — same shape as seed. */
+  customContracts: Contract[];
   inFlightUploads: UploadJob[];
   customTeams: Team[];
   teamMemberOverrides: Record<string, string[]>; // team id -> member ids
@@ -60,6 +63,7 @@ interface OverlayState {
   clearVerification: (fieldId: string) => void;
   overrideWorkItem: (id: string, patch: WorkItemOverride) => void;
   addManualItem: (item: WorkItem) => void;
+  addCustomContract: (contract: Contract) => void;
   startUpload: (job: UploadJob) => void;
   advanceUpload: (jobId: string, stage: "extracting") => void;
   completeUpload: (jobId: string) => void;
@@ -77,6 +81,7 @@ const initialData = {
   workItemOverrides: {},
   manualItems: [],
   uploadedContractIds: [],
+  customContracts: [],
   inFlightUploads: [],
   customTeams: [],
   teamMemberOverrides: {},
@@ -112,6 +117,13 @@ export const useOverlay = create<OverlayState>()(
         })),
       addManualItem: (item) =>
         set((s) => ({ manualItems: [...s.manualItems, item] })),
+      addCustomContract: (contract) =>
+        set((s) => ({
+          customContracts: [
+            contract,
+            ...s.customContracts.filter((c) => c.id !== contract.id),
+          ],
+        })),
       startUpload: (job) =>
         set((s) => ({ inFlightUploads: [...s.inFlightUploads, job] })),
       advanceUpload: (jobId, stage) =>
@@ -158,6 +170,7 @@ export const useOverlay = create<OverlayState>()(
         workItemOverrides: s.workItemOverrides,
         manualItems: s.manualItems,
         uploadedContractIds: s.uploadedContractIds,
+        customContracts: s.customContracts,
         // in-flight uploads intentionally resolve on next load
         customTeams: s.customTeams,
         teamMemberOverrides: s.teamMemberOverrides,

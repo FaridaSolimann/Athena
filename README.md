@@ -34,6 +34,15 @@ tells you which engine read your question. No key, a timeout, or an invalid plan
 all degrade silently to the pattern matcher. Your key stays in `.env.local`,
 which is never committed.
 
+**The same key makes uploads real.** Drop any PDF or Word contract into the
+Repository and Athena extracts its text, has Gemini quote the terms it finds
+(quotes only — every one is string-verified against the document before it's
+shown, and values are normalized in code, never by the model), and adds the
+contract to the shared store: it appears in the Repository, Search, Insights,
+Explore, and the review queue like any seed contract, with real clause
+highlighting. Without a key (or for scanned/unreadable files), an upload maps to
+a pre-authored sample contract instead so the flow still completes end to end.
+
 > The workspace clock is frozen at **July 19, 2026** so that relative dates
 > ("notice due in 13 days") stay meaningful.
 

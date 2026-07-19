@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { WorkItem, WorkItemStatus } from "@/data/types";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
 import { AssigneePicker } from "@/components/tasks/AssigneePicker";
 import { ApprovalActions } from "@/components/tasks/ApprovalActions";
@@ -93,7 +93,7 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const contract = item.contractId ? getContract(item.contractId) : undefined;
+            const contract = item.contractId ? lookupContract(item.contractId) : undefined;
             const isOpen = expanded === item.id;
             const awaiting = item.needsApproval && item.approvalStatus === "awaiting";
             return (

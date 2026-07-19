@@ -8,6 +8,16 @@ import { confidenceLevel, type ConfidenceLevel } from "@/lib/format";
 
 // Effective state = immutable seed ⊕ user overlay, merged at read time.
 
+/** Resolve ANY contract — seed, upload-queue, or genuinely uploaded (custom).
+ * Use this instead of data/index's getContract everywhere UI code resolves an
+ * id, so uploaded contracts are first-class citizens. */
+export function lookupContract(id: string): Contract | undefined {
+  return (
+    getContract(id) ??
+    useOverlay.getState().customContracts.find((c) => c.id === id)
+  );
+}
+
 export interface EffectiveField {
   field: ExtractedField;
   verification?: Verification;
@@ -47,11 +57,14 @@ export function effectiveField(
 
 export function useEffectiveField(fieldId: string): EffectiveField | undefined {
   const verification = useOverlay((s) => s.fieldVerifications[fieldId]);
+  const customContracts = useOverlay((s) => s.customContracts);
   return useMemo(() => {
-    const contract = ALL_CONTRACTS.find((c) => c.fields.some((f) => f.id === fieldId));
+    const contract =
+      ALL_CONTRACTS.find((c) => c.fields.some((f) => f.id === fieldId)) ??
+      customContracts.find((c) => c.fields.some((f) => f.id === fieldId));
     const field = contract?.fields.find((f) => f.id === fieldId);
     return field ? effectiveField(field, verification) : undefined;
-  }, [fieldId, verification]);
+  }, [fieldId, verification, customContracts]);
 }
 
 /** Contract status once the overlay is applied: a needs_review contract whose
@@ -79,13 +92,14 @@ export interface EffectiveContract {
 export function useEffectiveContracts(): EffectiveContract[] {
   const verifications = useOverlay((s) => s.fieldVerifications);
   const uploadedIds = useOverlay((s) => s.uploadedContractIds);
+  const customContracts = useOverlay((s) => s.customContracts);
 
   return useMemo(() => {
     const uploaded = uploadedIds
       .map((id) => getContract(id))
       .filter((c): c is Contract => !!c && UPLOAD_QUEUE.some((q) => q.id === c.id));
     // Fresh uploads surface at the top of the repository.
-    const visible = [...[...uploaded].reverse(), ...SEED_CONTRACTS];
+    const visible = [...customContracts, ...[...uploaded].reverse(), ...SEED_CONTRACTS];
     return visible.map((contract) => ({
       contract,
       status: effectiveStatus(contract, verifications),
@@ -105,9 +119,10 @@ export function useEffectiveContract(id: string):
   | undefined {
   const verifications = useOverlay((s) => s.fieldVerifications);
   const uploadedIds = useOverlay((s) => s.uploadedContractIds);
+  const customContracts = useOverlay((s) => s.customContracts);
 
   return useMemo(() => {
-    const contract = getContract(id);
+    const contract = getContract(id) ?? customContracts.find((c) => c.id === id);
     if (!contract) return undefined;
     return {
       contract,
@@ -118,10 +133,12 @@ export function useEffectiveContract(id: string):
           verifications[f.id]?.status !== "confirmed" &&
           verifications[f.id]?.status !== "corrected"
       ).length,
-      uploaded: uploadedIds.includes(contract.id),
+      uploaded:
+        uploadedIds.includes(contract.id) ||
+        customContracts.some((c) => c.id === contract.id),
       fields: contract.fields.map((f) => effectiveField(f, verifications[f.id])),
     };
-  }, [id, verifications, uploadedIds]);
+  }, [id, verifications, uploadedIds, customContracts]);
 }
 
 /** USD value of a field's effective money value (for live aggregates). */
@@ -139,6 +156,7 @@ const PRIORITY_RANK = { critical: 0, high: 1, medium: 2, low: 3 } as const;
 export function useWorkItems(): WorkItem[] {
   const verifications = useOverlay((s) => s.fieldVerifications);
   const uploadedIds = useOverlay((s) => s.uploadedContractIds);
+  const customContracts = useOverlay((s) => s.customContracts);
   const overrides = useOverlay((s) => s.workItemOverrides);
   const manualItems = useOverlay((s) => s.manualItems);
 
@@ -146,7 +164,7 @@ export function useWorkItems(): WorkItem[] {
     const uploaded = uploadedIds
       .map((id) => getContract(id))
       .filter((c): c is Contract => !!c && UPLOAD_QUEUE.some((q) => q.id === c.id));
-    const visible = [...SEED_CONTRACTS, ...uploaded];
+    const visible = [...SEED_CONTRACTS, ...uploaded, ...customContracts];
     const derived = deriveWorkItems(visible, verifications);
     const all = [...derived, ...manualItems].map((item) => ({
       ...item,
@@ -159,5 +177,5 @@ export function useWorkItems(): WorkItem[] {
         return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
       return (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999");
     });
-  }, [verifications, uploadedIds, overrides, manualItems]);
+  }, [verifications, uploadedIds, customContracts, overrides, manualItems]);
 }

@@ -3,10 +3,9 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CloudUpload, FileText, LoaderCircle } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { useOverlay } from "@/lib/store";
 import { MockExtractionEngine } from "@/lib/extraction/mock-engine";
-import type { StageEvent } from "@/lib/extraction/engine";
+import type { Contract } from "@/data/types";
 import { cn } from "@/lib/utils";
 
 interface LiveJob {
@@ -14,7 +13,6 @@ interface LiveJob {
   filename: string;
   sizeLabel: string;
   stage: "uploading" | "extracting";
-  progress: number;
   statusLine: string;
 }
 
@@ -26,10 +24,32 @@ function sizeLabel(bytes: number): string {
 
 const ACCEPTED = /\.(pdf|docx?|PDF|DOCX?)$/;
 
+const EXTRACT_LINES = [
+  "Reading document structure…",
+  "Identifying parties…",
+  "Extracting dates and renewal terms…",
+  "Checking liability and indemnity clauses…",
+  "Verifying quotes against the document…",
+  "Scoring confidence…",
+];
+
+/** Minimal sanity check on the server's contract before it enters the store. */
+function looksLikeContract(c: unknown): c is Contract {
+  const x = c as Contract;
+  return (
+    !!x &&
+    typeof x.id === "string" &&
+    Array.isArray(x.fields) &&
+    x.fields.length > 0 &&
+    !!x.document?.sections?.length
+  );
+}
+
 export function UploadDropzone() {
   const [dragOver, setDragOver] = useState(false);
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inFlightRef = useRef<Set<string>>(new Set());
 
   const handleFiles = useCallback((files: FileList | null) => {
     const file = files?.[0];
@@ -40,62 +60,107 @@ export function UploadDropzone() {
       });
       return;
     }
+    // drop + change can both fire for one pick — process each file once
+    const fileKey = `${file.name}:${file.size}`;
+    if (inFlightRef.current.has(fileKey)) return;
+    inFlightRef.current.add(fileKey);
     const jobId = `job-${Date.now()}`;
-    const job: LiveJob = {
-      id: jobId,
-      filename: file.name,
-      sizeLabel: sizeLabel(file.size),
-      stage: "uploading",
-      progress: 0,
-      statusLine: "",
+    setJobs((j) => [
+      ...j,
+      {
+        id: jobId,
+        filename: file.name,
+        sizeLabel: sizeLabel(file.size),
+        stage: "uploading",
+        statusLine: "",
+      },
+    ]);
+
+    const setJob = (patch: Partial<LiveJob>) =>
+      setJobs((all) => all.map((x) => (x.id === jobId ? { ...x, ...patch } : x)));
+    const finishJob = () => {
+      inFlightRef.current.delete(fileKey);
+      setJobs((all) => all.filter((x) => x.id !== jobId));
     };
-    setJobs((j) => [...j, job]);
 
-    const engine = new MockExtractionEngine(
-      () => useOverlay.getState().uploadedContractIds
-    );
-    const onStage = (e: StageEvent) =>
-      setJobs((all) =>
-        all.map((x) =>
-          x.id === jobId
-            ? e.stage === "uploading"
-              ? { ...x, stage: "uploading", progress: e.progress }
-              : { ...x, stage: "extracting", statusLine: e.statusLine }
-            : x
-        )
+    // Rotate honest microcopy while the real extraction runs.
+    let line = 0;
+    const ticker = setInterval(() => {
+      setJob({ stage: "extracting", statusLine: EXTRACT_LINES[line % EXTRACT_LINES.length] });
+      line++;
+    }, 900);
+
+    const fallbackToQueue = async () => {
+      const engine = new MockExtractionEngine(
+        () => useOverlay.getState().uploadedContractIds
       );
+      const result = await engine.extract(
+        { name: file.name, size: file.size, mimeType: file.type },
+        () => {}
+      );
+      clearInterval(ticker);
+      finishJob();
+      if (result.outcome === "duplicate") {
+        toast(`Already in the repository`, {
+          description: `${file.name} matches “${result.matchTitle}” — nothing new to extract.`,
+        });
+        return;
+      }
+      const c = result.contract;
+      useOverlay.getState().startUpload({
+        id: jobId,
+        filename: file.name,
+        sizeLabel: sizeLabel(file.size),
+        stage: "extracting",
+        contractId: c.id,
+        startedAt: Date.now(),
+      });
+      useOverlay.getState().completeUpload(jobId);
+      const low = c.fields.filter((f) => f.confidence < 0.75).length;
+      toast[low ? "warning" : "success"](
+        `${c.fields.length} terms extracted${low ? ` — ${low} need review` : ""}`,
+        { description: `${c.title} was added${low ? " and its flagged terms are in the approval queue" : ""}.` }
+      );
+    };
 
-    engine
-      .extract({ name: file.name, size: file.size, mimeType: file.type }, onStage)
-      .then((result) => {
-        setJobs((all) => all.filter((x) => x.id !== jobId));
-        if (result.outcome === "duplicate") {
-          toast(`Already in the repository`, {
-            description: `${file.name} matches “${result.matchTitle}” — nothing new to extract.`,
-          });
+    const run = async () => {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45_000);
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          body: form,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        const data = await res.json();
+
+        if (data?.engine === "gemini" && looksLikeContract(data.contract)) {
+          clearInterval(ticker);
+          finishJob();
+          const c = data.contract as Contract;
+          useOverlay.getState().addCustomContract(c);
+          const low = c.fields.filter((f) => f.confidence < 0.75).length;
+          toast[low ? "warning" : "success"](
+            `${c.fields.length} terms extracted${low ? ` — ${low} need review` : ""}`,
+            {
+              description: `${c.title} (${c.counterparty}) was added${low ? " with flagged terms in the approval queue" : ""}.`,
+            }
+          );
           return;
         }
-        const c = result.contract;
-        useOverlay.getState().startUpload({
-          id: jobId,
-          filename: file.name,
-          sizeLabel: sizeLabel(file.size),
-          stage: "extracting",
-          contractId: c.id,
-          startedAt: Date.now(),
-        });
-        useOverlay.getState().completeUpload(jobId);
-        const low = c.fields.filter((f) => f.confidence < 0.75).length;
-        if (result.outcome === "needs_review") {
-          toast.warning(`${c.fields.length} terms extracted — ${low} need review`, {
-            description: `${c.title} was added and its flagged terms are in the approval queue.`,
-          });
-        } else {
-          toast.success(`${c.fields.length} terms extracted`, {
-            description: `${c.title} is ready.`,
-          });
-        }
-      });
+        // no key / unreadable / model error → the pre-authored queue keeps the
+        // demo alive (documented in README)
+        console.debug("[upload] falling back to queue:", data?.reason ?? "unknown");
+        await fallbackToQueue();
+      } catch (err) {
+        console.debug("[upload] extract call failed:", err);
+        await fallbackToQueue();
+      }
+    };
+    void run();
   }, []);
 
   return (
@@ -148,11 +213,9 @@ export function UploadDropzone() {
           <FileText className="size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium">{job.filename}</p>
-            {job.stage === "uploading" ? (
-              <Progress value={job.progress * 100} className="mt-1.5 h-1.5" />
-            ) : (
-              <p className="mt-0.5 text-xs text-muted-foreground">{job.statusLine}</p>
-            )}
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {job.stage === "uploading" ? "Uploading…" : job.statusLine}
+            </p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary">
             <LoaderCircle className="size-3.5 animate-spin" />

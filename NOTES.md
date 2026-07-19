@@ -19,10 +19,22 @@ right-side slide-in panels. Judgment calls:
 
 ## Simulated AI
 
-- Extraction is pre-computed seed data behind a real seam: `lib/extraction/engine.ts`
-  defines `ExtractionEngine`; the Phase-1 `MockExtractionEngine` never reads file
-  bytes and materializes pre-authored contracts from `src/data/upload-queue`. A real
-  parser drops in behind the same interface without touching UI code.
+- Uploads are REAL when a Gemini key is configured: `/api/extract` pulls text
+  from the PDF/DOCX (`pdf-parse`/`mammoth` — kept external to Next's bundler,
+  see `next.config.ts`), Gemini extracts field/quote/confidence triples
+  (quotes only), the server string-verifies every quote against the document
+  (unverified → confidence capped at 0.45, no source shown), values are
+  normalized deterministically in `lib/extraction/normalize.ts` (EUR at the
+  dated 1.08 rate, word-durations → days, formula caps → routed to review),
+  and `lib/extraction/assemble.ts` emits a Contract in the exact seed shape —
+  so provenance highlighting, verify/correct, derived alerts, Insights,
+  Search, and Explore all work on it unchanged. The notice deadline is
+  computed in code (term end − notice days), never by the model. Uploaded
+  contracts live in the persisted overlay (`customContracts`) and resolve
+  through `lookupContract` everywhere.
+- Keyless (or scanned/unreadable files): `MockExtractionEngine` maps the upload
+  to a pre-authored contract from `src/data/upload-queue` — still a genuine,
+  searchable record — so the demo never dies. Documented in the README.
 - Explore has two question readers and ONE answerer. Both Google Gemini
   (`/api/ask`, model pinned in `route.ts`) and the deterministic pattern matcher
   (`lib/explore/engine.ts`) translate a question into the same validated

@@ -11,7 +11,7 @@ import {
   type TimelineEventKind,
 } from "@/lib/derive/timeline";
 import { TrustedFact } from "@/components/trust/TrustedFact";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { parseISO, TODAY, daysFromToday, addDays, TODAY_ISO } from "@/lib/demo-clock";
 import { fmtDateShort, fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -485,7 +485,7 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
               href={`/contracts/${selected.contractId}`}
               className="mt-2.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
-              Open {getContract(selected.contractId)?.counterparty}
+              Open {lookupContract(selected.contractId)?.counterparty}
               <ArrowUpRight className="size-3" />
             </Link>
           </div>

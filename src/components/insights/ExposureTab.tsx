@@ -5,7 +5,7 @@ import { exposure, typeMix } from "@/lib/derive/insights";
 import { TakeawayCard, Block } from "@/components/insights/TakeawayCard";
 import { ShareBar, RankedBars } from "@/components/insights/bars";
 import type { DrillTarget } from "@/components/insights/DrillSheet";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { fmtMoney, fmtMoneyFull, fmtPercent } from "@/lib/format";
 
 export function ExposureTab({
@@ -24,7 +24,7 @@ export function ExposureTab({
       title,
       description,
       rows: ids.map((id) => {
-        const c = getContract(id)!;
+        const c = lookupContract(id)!;
         return {
           contractId: id,
           fieldIds: c.fields
@@ -70,7 +70,7 @@ export function ExposureTab({
               description:
                 "Contracts whose extracted terms include unreviewed low-confidence fields — verify them to firm these numbers up.",
               rows: exp.unverifiedIds.map((id) => {
-                const c = getContract(id)!;
+                const c = lookupContract(id)!;
                 return {
                   contractId: id,
                   fieldIds: c.fields

@@ -2,7 +2,7 @@
 
 import { Quote, CircleOff } from "lucide-react";
 import type { Contract, SourceRef } from "@/data/types";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { useUi } from "@/lib/ui";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function SourceChip({
   className?: string;
 }) {
   const openClausePeek = useUi((s) => s.openClausePeek);
-  const contract = getContract(contractId);
+  const contract = lookupContract(contractId);
   const ref =
     sourceRef ??
     (fieldId ? contract?.fields.find((f) => f.id === fieldId)?.source : null);

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, FileText, BellRing, Sparkles } from "lucide-react";
+import { fmtFieldValue } from "@/lib/format";
 import {
   Command,
   CommandDialog,
@@ -22,6 +23,26 @@ export function GlobalSearch() {
   const router = useRouter();
   const contracts = useEffectiveContracts();
   const items = useWorkItems();
+
+  // Search matches name, counterparty, type, every extracted value, and the
+  // clause text itself — across ALL contracts in the store, including
+  // just-uploaded and in-review ones.
+  const searchable = useMemo(
+    () =>
+      contracts.map((r) => {
+        const c = r.contract;
+        const fieldValues = c.fields.map((f) => fmtFieldValue(f.value)).join(" ");
+        const clauseText = c.document.sections
+          .flatMap((s) => s.paragraphs)
+          .join(" ")
+          .slice(0, 4000);
+        return {
+          ...r,
+          haystack: `${c.title} ${c.counterparty} ${c.type} ${fieldValues} ${clauseText}`,
+        };
+      }),
+    [contracts]
+  );
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -61,14 +82,19 @@ export function GlobalSearch() {
           <CommandList>
           <CommandEmpty>No matches — try asking in Explore below.</CommandEmpty>
           <CommandGroup heading="Contracts">
-            {contracts.map(({ contract }) => (
+            {searchable.map(({ contract, status, haystack }) => (
               <CommandItem
                 key={contract.id}
-                value={`${contract.title} ${contract.counterparty} ${contract.type}`}
+                value={haystack}
                 onSelect={() => go(`/contracts/${contract.id}`)}
               >
                 <FileText className="size-3.5 text-muted-foreground" />
                 <span className="truncate">{contract.title}</span>
+                {status === "needs_review" && (
+                  <span className="shrink-0 rounded-full bg-trust-medium-bg px-1.5 py-0.5 text-[10px] font-medium text-trust-medium">
+                    in review
+                  </span>
+                )}
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                   {contract.counterparty}
                 </span>

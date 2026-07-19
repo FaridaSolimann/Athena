@@ -14,7 +14,7 @@ import { ConfidenceBadge } from "@/components/trust/ConfidenceBadge";
 import { VerifyBar } from "@/components/trust/VerifyBar";
 import { useUi } from "@/lib/ui";
 import { useEffectiveField } from "@/lib/selectors";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { fmtFieldValue } from "@/lib/format";
 
 function PeekBody() {
@@ -22,7 +22,7 @@ function PeekBody() {
   const ef = useEffectiveField(target?.fieldId ?? "");
   if (!target) return null;
 
-  const contract = getContract(target.contractId);
+  const contract = lookupContract(target.contractId);
   if (!contract) return null;
 
   const ref = target.ref ?? ef?.field.source ?? null;

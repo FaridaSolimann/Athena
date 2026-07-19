@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { BadgeCheck, PencilLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WorkItem } from "@/data/types";
-import { CURRENT_USER_ID, getContract } from "@/data";
+import { CURRENT_USER_ID } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
 
 /** Approve / edit-then-approve / reject for items awaiting approval.
@@ -17,7 +18,7 @@ export function ApprovalActions({ item }: { item: WorkItem }) {
 
   if (!item.needsApproval || item.approvalStatus !== "awaiting" || !item.contractId)
     return null;
-  const contract = getContract(item.contractId);
+  const contract = lookupContract(item.contractId);
   const pending = (item.fieldIds ?? []).filter(
     (id) =>
       verifications[id]?.status !== "confirmed" &&

@@ -82,6 +82,49 @@ Q: "What's the best pizza in Denver?"
 {"unsupported": true}`;
 }
 
+// ---- Upload extraction (question-free): quote-only field extraction ----
+
+const EXTRACTABLE_FIELDS = PLAN_FIELDS.filter((f) => f !== "status");
+
+export const EXTRACTION_SYSTEM_INSTRUCTION = `You extract contract terms from a document's text. For each term you find, return the field key, the verbatim value, the exact sentence it came from, and your confidence.
+
+Hard rules:
+- sourceQuote must be a VERBATIM, contiguous sentence (or clause) copied character-for-character from the document text. It will be string-matched against the document; a paraphrase fails verification and discards your extraction.
+- rawValue is the verbatim span holding the value itself (e.g. "$250,000", "sixty (60) days", "September 30, 2026").
+- Do NOT normalize, convert, compute, or infer values. No currency conversion, no date arithmetic, no resolving formulas. Quote exactly what the document says.
+- Skip fields the document does not state. Never invent.
+- confidence (0-1) reflects how clearly the document states the value: crisp explicit statement 0.9+, indirect or scattered 0.6-0.85, genuinely unclear below 0.6.
+- Also return the contract's title (as written or a faithful short name), the counterparty (the party that is NOT the customer/buyer if discernible), and the contract type.
+
+FIELD KEYS: ${EXTRACTABLE_FIELDS.join(", ")}`;
+
+export const EXTRACTION_RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  required: ["title", "counterparty", "contractType", "fields"],
+  propertyOrdering: ["title", "counterparty", "contractType", "fields"],
+  properties: {
+    title: { type: Type.STRING },
+    counterparty: { type: Type.STRING },
+    contractType: {
+      type: Type.STRING,
+      enum: ["SaaS", "MSA", "SOW", "NDA", "Vendor", "Employment", "Lease", "Partnership"],
+    },
+    fields: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        required: ["field", "rawValue", "sourceQuote", "confidence"],
+        properties: {
+          field: { type: Type.STRING, enum: [...EXTRACTABLE_FIELDS] },
+          rawValue: { type: Type.STRING },
+          sourceQuote: { type: Type.STRING },
+          confidence: { type: Type.NUMBER },
+        },
+      },
+    },
+  },
+};
+
 /** System instruction for the second (answer-writing) call. The model sees
  * ONLY the retrieved results and phrases them — it never adds facts or math. */
 export const ANSWER_SYSTEM_INSTRUCTION = `You write a one-to-two sentence answer to a question about contracts, using ONLY the structured context provided in the user message.

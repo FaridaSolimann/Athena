@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { ExploreRow } from "@/lib/explore/engine";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { StatusChip } from "@/components/repository/StatusChip";
 import { TrustedFact } from "@/components/trust/TrustedFact";
 import { effectiveStatus } from "@/lib/selectors";
@@ -12,7 +12,7 @@ import { useOverlay } from "@/lib/store";
 /** One contract in an Explore answer: identity + the cited facts behind it. */
 export function ResultCard({ row }: { row: ExploreRow }) {
   const verifications = useOverlay((s) => s.fieldVerifications);
-  const contract = getContract(row.contractId);
+  const contract = lookupContract(row.contractId);
   if (!contract) return null;
 
   return (

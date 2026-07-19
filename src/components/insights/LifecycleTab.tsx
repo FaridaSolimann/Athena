@@ -6,7 +6,7 @@ import type { InsightsInput } from "@/lib/derive/insights";
 import { lifecycle } from "@/lib/derive/insights";
 import { TakeawayCard, Block } from "@/components/insights/TakeawayCard";
 import type { DrillTarget } from "@/components/insights/DrillSheet";
-import { getContract } from "@/data";
+import { lookupContract } from "@/lib/selectors";
 import { fmtDate, fmtMoney, fmtRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ export function LifecycleTab({
       <Block title="Upcoming term ends">
         <div className="space-y-1">
           {horizon.map((h) => {
-            const c = getContract(h.id)!;
+            const c = lookupContract(h.id)!;
             return (
               <button
                 key={h.id}
@@ -117,7 +117,7 @@ export function LifecycleTab({
         <Block title="Recurring obligations">
           <div className="space-y-2">
             {recurring.slice(0, 7).map(({ contractId, obligation }) => {
-              const c = getContract(contractId)!;
+              const c = lookupContract(contractId)!;
               return (
                 <div key={obligation.id} className="flex items-start gap-2">
                   <Repeat className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
