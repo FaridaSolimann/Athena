@@ -31,7 +31,6 @@ const LANES: { kind: TimelineEventKind; label: string; y: number; color: string 
 const H = 300;
 const PAD_L = 132;
 const PAD_R = 24;
-const MS_DAY = 86_400_000;
 
 const PRESETS = [
   { label: "Next 90 days", days: 90 },
@@ -143,6 +142,7 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
   const applyPreset = (label: string, days: number | null) => {
     setPreset(label);
     setSelected(null);
+    setOpenCluster(null);
     if (days === null) {
       animateTo([rangeStart, rangeEnd]);
     } else {
@@ -213,12 +213,9 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
     return out;
   }, [domain]);
 
-  const zoomToCluster = (c: Cluster) => {
-    const times = c.events.map((e) => parseISO(e.date).getTime());
-    const pad = 12 * MS_DAY;
-    animateTo([Math.min(...times) - pad, Math.max(...times) + pad]);
-    setPreset("");
-  };
+  // Clustered events usually share a date (monthly payments), so zooming can
+  // never separate them — clicking opens a list instead.
+  const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
 
   // Keyboard: step through events chronologically.
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -299,6 +296,7 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
           }}
           onPointerMove={(e) => {
             if (!dragRef.current) return;
+            setOpenCluster(null);
             const dx = e.clientX - dragRef.current.startX;
             const span = dragRef.current.domain[1] - dragRef.current.domain[0];
             const shift = (dx / (width - PAD_L - PAD_R)) * span;
@@ -393,7 +391,10 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
               className="cursor-pointer"
               style={{ animation: "athena-event-in 300ms ease-out both", animationDelay: `${Math.min(i, 25) * 18}ms` }}
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => zoomToCluster(c)}
+              onClick={() => {
+                setSelected(null);
+                setOpenCluster(openCluster === c ? null : c);
+              }}
             >
               <circle cx={c.x} cy={c.y} r={11} fill="var(--card)" stroke={c.laneColor} strokeWidth={1.8} />
               <text x={c.x} y={c.y + 3.5} fontSize={10} fontWeight={700} fill="var(--foreground)" textAnchor="middle">
@@ -403,13 +404,61 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
           ))}
         </svg>
 
+        {/* cluster list popover */}
+        {openCluster && (
+          <div
+            className="absolute z-10 w-[300px] rounded-lg border bg-popover p-2 shadow-lg"
+            style={{
+              left: Math.max(8, Math.min(width - 308, openCluster.x - 150)),
+              // flip above the point in the lower lanes so the container
+              // doesn't clip the list
+              ...(openCluster.y > 160
+                ? { bottom: H - openCluster.y + 14 }
+                : { top: openCluster.y + 16 }),
+            }}
+          >
+            <div className="flex items-center justify-between px-1.5 pb-1.5 pt-0.5">
+              <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {openCluster.events.length} events around {fmtDateShort(openCluster.events[0].date)}
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpenCluster(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="max-h-52 overflow-y-auto">
+              {openCluster.events.map((ev) => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => {
+                    setOpenCluster(null);
+                    setSelected(ev);
+                  }}
+                  className="flex w-full items-center justify-between gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-accent"
+                >
+                  <span className="truncate text-[12.5px] font-medium">{ev.title}</span>
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {fmtDateShort(ev.date)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* event popover */}
         {selected && selectedPlace && (
           <div
             className="absolute z-10 w-[320px] rounded-lg border bg-popover p-3 shadow-lg"
             style={{
               left: Math.max(8, Math.min(width - 328, selectedPlace.x - 160)),
-              top: Math.min(H - 8, selectedPlace.y + 16),
+              ...(selectedPlace.y > 160
+                ? { bottom: H - selectedPlace.y + 14 }
+                : { top: selectedPlace.y + 16 }),
             }}
           >
             <div className="flex items-start justify-between gap-2">
@@ -473,7 +522,7 @@ export function ObligationsTimeline({ input }: { input: InsightsInput }) {
             <circle cx="7" cy="7" r="6" fill="var(--card)" stroke="var(--muted-foreground)" strokeWidth="1.4" />
             <text x="7" y="9.5" fontSize="7.5" fontWeight="700" fill="var(--foreground)" textAnchor="middle">3</text>
           </svg>
-          Several events on close dates — click to zoom in
+          Several events on close dates — click to list them
         </span>
       </div>
 
