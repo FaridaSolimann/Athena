@@ -43,19 +43,27 @@ export function AssigneePicker({
         <span className="truncate">{label}</span>
         <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-80 w-64 overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <DropdownMenuLabel className="text-[11px]">People</DropdownMenuLabel>
         {USERS.map((u) => (
           <DropdownMenuItem
             key={u.id}
-            className="text-xs"
+            className="gap-2.5"
             onClick={() => onChange({ kind: "user", id: u.id })}
           >
-            <span className="flex size-5 items-center justify-center rounded-full bg-accent text-[9px] font-semibold">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[9px] font-semibold">
               {u.initials}
             </span>
-            {u.name}
-            <span className="ml-auto text-[10.5px] text-muted-foreground">{u.role}</span>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-medium">{u.name}</span>
+              <span className="block truncate text-[10.5px] text-muted-foreground">
+                {u.role}
+              </span>
+            </span>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
@@ -63,11 +71,13 @@ export function AssigneePicker({
         {teams.map((t) => (
           <DropdownMenuItem
             key={t.id}
-            className="text-xs"
+            className="gap-2.5"
             onClick={() => onChange({ kind: "team", id: t.id })}
           >
-            <Users className="size-3.5 text-muted-foreground" />
-            {t.name}
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted">
+              <Users className="size-3 text-muted-foreground" />
+            </span>
+            <span className="text-xs font-medium">{t.name}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
