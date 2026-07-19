@@ -56,6 +56,7 @@ SCOPES (use intent "lookup" with scope instead of filters for these question sha
 - families: "master agreements and their SOWs / related contracts"
 
 RULES:
+- ALWAYS include "filters". It is the heart of the plan — an empty array is only valid when using scope, groupBy, or a whole-portfolio aggregate.
 - filters are ANDed. For a single value use "value"; for "any of" use "values" as an array of strings (e.g. "vendor contracts" colloquially includes SaaS: {"field":"contract_type","op":"eq","values":["Vendor","SaaS"]}).
 - population defaults to "active". Use "all" ONLY for expired-contract questions, whole-portfolio totals, or governing-law lookups.
 - For "total value/exposure/spend with <counterparty>" use intent "aggregate", aggregate {"fn":"sum","field":"total_value"}, and a counterparty contains filter.
@@ -81,16 +82,27 @@ Q: "What's the best pizza in Denver?"
 // validatePlan coerces them deterministically on both server and client.
 export const PLAN_RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
+  required: ["intent", "filters", "show"],
+  propertyOrdering: [
+    "intent",
+    "filters",
+    "aggregate",
+    "groupBy",
+    "scope",
+    "population",
+    "show",
+    "sort",
+    "limit",
+    "unsupported",
+  ],
   properties: {
     unsupported: { type: Type.BOOLEAN, nullable: true },
     intent: {
       type: Type.STRING,
       enum: ["filter", "aggregate", "compare", "lookup"],
-      nullable: true,
     },
     filters: {
       type: Type.ARRAY,
-      nullable: true,
       items: {
         type: Type.OBJECT,
         properties: {

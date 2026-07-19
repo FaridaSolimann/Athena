@@ -55,7 +55,7 @@ function ExploreInner() {
     let engine: "gemini" | "fallback" = "fallback";
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 6_500);
+      const timer = setTimeout(() => controller.abort(), 10_000);
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

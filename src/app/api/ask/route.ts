@@ -16,7 +16,9 @@ import {
  * the current GA Flash explicitly so behavior doesn't shift under us. */
 const GEMINI_MODEL = "gemini-3.5-flash";
 
-const TIMEOUT_MS = 5_000;
+// Warm calls run 2–4s; the budget leaves headroom for cold starts without
+// letting a hung call stall the page (the client aborts at 10s regardless).
+const TIMEOUT_MS = 8_000;
 
 type FallbackReason =
   | "no_key"
