@@ -12,7 +12,7 @@ import type { InsightsInput } from "@/lib/derive/insights";
 import { useEffectiveContracts } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
 
-const TABS = ["overview", "exposure", "lifecycle", "timeline"] as const;
+const TABS = ["timeline", "overview", "exposure", "lifecycle"] as const;
 type Tab = (typeof TABS)[number];
 
 function InsightsInner() {
@@ -20,7 +20,7 @@ function InsightsInner() {
   const router = useRouter();
   const tab: Tab = (TABS as readonly string[]).includes(params.get("tab") ?? "")
     ? (params.get("tab") as Tab)
-    : "overview";
+    : "timeline";
 
   const effective = useEffectiveContracts();
   const verifications = useOverlay((s) => s.fieldVerifications);
@@ -46,11 +46,14 @@ function InsightsInner() {
         onValueChange={(v) => router.replace(`/insights?tab=${v}`, { scroll: false })}
       >
         <TabsList className="mb-4">
+          <TabsTrigger value="timeline">Obligations Timeline</TabsTrigger>
           <TabsTrigger value="overview">Portfolio Overview</TabsTrigger>
           <TabsTrigger value="exposure">Financial Exposure</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle & Obligations</TabsTrigger>
-          <TabsTrigger value="timeline">Obligations Timeline</TabsTrigger>
         </TabsList>
+        <TabsContent value="timeline">
+          <ObligationsTimeline input={input} />
+        </TabsContent>
         <TabsContent value="overview">
           <PortfolioTab input={input} onDrill={setDrill} />
         </TabsContent>
@@ -59,9 +62,6 @@ function InsightsInner() {
         </TabsContent>
         <TabsContent value="lifecycle">
           <LifecycleTab input={input} onDrill={setDrill} />
-        </TabsContent>
-        <TabsContent value="timeline">
-          <ObligationsTimeline input={input} />
         </TabsContent>
       </Tabs>
 
