@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Repository", icon: FolderOpen },
   { href: "/insights", label: "Insights", icon: ChartNoAxesColumn },
-  { href: "/tasks", label: "Tasks & Alerts", icon: BellRing },
   { href: "/explore", label: "Explore", icon: Telescope },
+  { href: "/tasks", label: "Tasks & Alerts", icon: BellRing },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
