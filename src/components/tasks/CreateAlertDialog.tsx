@@ -82,7 +82,7 @@ export function CreateAlertDialog() {
             A dated reminder tied to a contract, alongside the auto-generated ones.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Title</Label>
             <Input
@@ -95,7 +95,11 @@ export function CreateAlertDialog() {
           <div className="space-y-1.5">
             <Label className="text-xs">Related contract</Label>
             <Select value={contractId} onValueChange={setContractId}>
-              <SelectTrigger size="sm" className="w-full text-[13px]">
+              {/* long contract names must truncate, not stretch the dialog */}
+              <SelectTrigger
+                size="sm"
+                className="w-full min-w-0 text-[13px] [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:truncate"
+              >
                 <SelectValue placeholder="Choose a contract" />
               </SelectTrigger>
               <SelectContent>
