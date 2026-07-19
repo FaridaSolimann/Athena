@@ -6,6 +6,10 @@ import { ALL_CONTRACTS } from "@/data";
 import { TODAY_ISO } from "@/lib/demo-clock";
 import { PLAN_FIELDS, PLAN_OPS, SCOPE_KINDS } from "@/lib/explore/plan";
 
+/** The one place the model id lives. gemini-flash-latest also works; we pin
+ * the current GA Flash explicitly so behavior doesn't shift under us. */
+export const GEMINI_MODEL = "gemini-3.5-flash";
+
 const FIELD_DOCS: Record<string, string> = {
   contract_type: "text — one of the contract types listed below",
   counterparty: "text — the other party's name",
@@ -77,6 +81,17 @@ Q: "How much are we committed to with Torvane?"
 Q: "What's the best pizza in Denver?"
 {"unsupported": true}`;
 }
+
+/** System instruction for the second (answer-writing) call. The model sees
+ * ONLY the retrieved results and phrases them — it never adds facts or math. */
+export const ANSWER_SYSTEM_INSTRUCTION = `You write a one-to-two sentence answer to a question about contracts, using ONLY the structured context provided in the user message.
+
+Hard rules:
+- 1–2 short sentences, plain language. No preamble, no "based on the data" filler — just the answer.
+- Use ONLY the provided context. Never add facts, terms, dates, or legal interpretation that are not in it.
+- Refer to contracts by counterparty or contract name from the context (e.g. "Bramblewood, Aldervik, and Pektra").
+- Every number must be copied VERBATIM from the context. Never calculate, convert, round, or infer any number. If an aggregate figure is provided, state it exactly as written — do not recompute it from the rows.
+- If the context does not answer the question, reply exactly: I couldn't find that in the contracts.`;
 
 // Values are declared as strings (structured output can't express unions);
 // validatePlan coerces them deterministically on both server and client.

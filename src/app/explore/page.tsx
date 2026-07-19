@@ -5,11 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { Search, Sparkles, CornerDownLeft, LoaderCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { buildFallbackPlan, type ExploreContext } from "@/lib/explore/engine";
+import { answerFor, describePlan, executePlan } from "@/lib/explore/execute";
 import {
-  buildFallbackPlan,
-  runPlan,
-  type ExploreContext,
-} from "@/lib/explore/engine";
+  buildAnswerContext,
+  proseNumbersAreGrounded,
+} from "@/lib/explore/answer-context";
 import { validatePlan, type QueryPlan } from "@/lib/explore/plan";
 import { SUGGESTED_QUESTIONS } from "@/lib/explore/suggestions";
 import { ResultCard } from "@/components/explore/ResultCard";
@@ -17,8 +18,8 @@ import { useEffectiveContracts } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
 
 type Asked =
-  | { plan: QueryPlan; engine: "gemini" | "fallback" }
-  | { plan: null; engine: "fallback" };
+  | { plan: QueryPlan; engine: "gemini" | "fallback"; reason?: string }
+  | { plan: null; engine: "fallback"; reason?: string };
 
 function ExploreInner() {
   const params = useSearchParams();
@@ -53,6 +54,7 @@ function ExploreInner() {
     // pattern matcher. Execution is always local either way.
     let plan: QueryPlan | null = null;
     let engine: "gemini" | "fallback" = "fallback";
+    let reason: string | undefined;
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10_000);
@@ -70,6 +72,8 @@ function ExploreInner() {
           plan = v.plan;
           engine = "gemini";
         }
+      } else if (typeof data?.reason === "string") {
+        reason = data.reason;
       }
     } catch {
       // network/timeout — fall through to the matcher
@@ -81,7 +85,7 @@ function ExploreInner() {
       plan = buildFallbackPlan(trimmed, ctxRef.current);
       engine = "fallback";
     }
-    setOutcome(plan ? { plan, engine } : { plan: null, engine: "fallback" });
+    setOutcome(plan ? { plan, engine, reason } : { plan: null, engine: "fallback", reason });
     setLoading(false);
   };
 
@@ -97,10 +101,56 @@ function ExploreInner() {
 
   // Re-execute the current plan whenever effective state changes — verifying
   // or correcting a term updates the answer without re-asking.
-  const result = useMemo(
-    () => (outcome?.plan ? runPlan(outcome.plan, ctx) : null),
-    [outcome, ctx]
-  );
+  const result = useMemo(() => {
+    if (!outcome?.plan) return null;
+    const exec = executePlan(outcome.plan, ctx);
+    return {
+      exec,
+      interpretation: describePlan(outcome.plan),
+      answer: answerFor(outcome.plan, exec, ctx),
+      rows: exec.rows,
+    };
+  }, [outcome, ctx]);
+
+  // Step 2: have Gemini phrase the retrieved results. The template answer
+  // shows immediately; the prose swaps in when it arrives. If a correction
+  // later changes the numbers, the stale prose is dropped automatically
+  // (it's keyed to the template it was generated alongside).
+  const [prose, setProse] = useState<{ text: string; forAnswer: string } | null>(null);
+  useEffect(() => {
+    setProse(null);
+    if (!outcome?.plan || !asked) return;
+    const plan = outcome.plan;
+    const requestId = ++requestRef.current;
+    const exec = executePlan(plan, ctxRef.current);
+    if (exec.rows.length === 0 && !exec.agg) return; // nothing to phrase
+    const templateAnswer = answerFor(plan, exec, ctxRef.current);
+    const context = buildAnswerContext(plan, exec, ctxRef.current, describePlan(plan));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    fetch("/api/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: asked, context }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (requestId !== requestRef.current) return;
+        const text = typeof data?.answer === "string" ? data.answer.trim() : null;
+        // The numbers guardrail: prose with any figure not present in the
+        // retrieved context is discarded in favor of the template.
+        if (text && proseNumbersAreGrounded(text, context)) {
+          setProse({ text, forAnswer: templateAnswer });
+        }
+      })
+      .catch(() => {})
+      .finally(() => clearTimeout(timer));
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outcome, asked]);
+
+  const proseShown = prose && result && prose.forAnswer === result.answer;
 
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-8">
@@ -187,12 +237,16 @@ function ExploreInner() {
             </span>
           </p>
           <div className="mt-2 rounded-lg border border-primary/25 bg-accent/60 p-4">
-            <p className="text-[14.5px] font-semibold leading-relaxed">{result.answer}</p>
+            <p className="text-[14.5px] font-semibold leading-relaxed">
+              {proseShown ? prose.text : result.answer}
+            </p>
           </div>
           <p className="mt-1.5 text-right text-[11px] text-muted-foreground">
-            {outcome.engine === "gemini"
-              ? "answered by Gemini — plan executed locally against your contracts"
-              : "answered by pattern matching (no API key)"}
+            {proseShown
+              ? "written by Gemini from the retrieved results — every number computed locally"
+              : outcome.engine === "gemini"
+                ? "answered by Gemini — plan executed locally against your contracts"
+                : `answered by pattern matching${outcome.reason === "no_key" ? " (no API key)" : outcome.reason === "rate_limited" ? " (Gemini rate-limited)" : ""}`}
           </p>
           <div className="mt-2 grid gap-2">
             {result.rows.map((row, i) => (

@@ -445,6 +445,29 @@ function executeScope(plan: QueryPlan, ctx: ExploreContext): ExecResult {
 export function answerFor(plan: QueryPlan, exec: ExecResult, ctx: ExploreContext): string {
   if (exec.scopeAnswer) return exec.scopeAnswer;
 
+  // Keyless parity: name the contracts (and their matched figures) inline so
+  // the deterministic answer reads like prose, not just a count.
+  const enumerated = (sentence: string): string => {
+    const direct = exec.rows.slice(0, exec.rows.length - exec.relatedCount);
+    if (direct.length === 0 || direct.length > 6) return sentence;
+    const parts = direct
+      .slice(0, 4)
+      .map((r) => {
+        const c = ctx.contracts.find((x) => x.id === r.contractId);
+        if (!c) return null;
+        const short = c.counterparty.replace(/,? ?\b(Inc|LLC|Corp|GmbH|Co|Partners|Group)\b\.?,?.*$/i, "").trim().replace(/,$/, "");
+        for (const key of plan.show) {
+          const m = effMoney(ctx, c, key);
+          if (m !== null) return `${short} (${fmtMoneyFull(m)})`;
+        }
+        return short;
+      })
+      .filter((x): x is string => !!x);
+    if (parts.length === 0) return sentence;
+    const more = direct.length - parts.length;
+    return `${sentence.replace(/\.$/, "")}: ${parts.join(", ")}${more > 0 ? `, and ${more} more` : ""}.`;
+  };
+
   // aggregate
   if (plan.intent === "aggregate" && exec.agg) {
     const a = exec.agg;
@@ -486,7 +509,9 @@ export function answerFor(plan: QueryPlan, exec: ExecResult, ctx: ExploreContext
   if (absent) {
     const ambiguous = exec.rows.filter((r) => r.note?.includes("ambiguous")).length;
     const firm = exec.rows.length - ambiguous;
-    return `${list(firm, popNoun)} ${firm === 1 ? "has" : "have"} no ${absent.field.replace(/_/g, " ")} at all${ambiguous ? `, and ${ambiguous} more ${ambiguous === 1 ? "is" : "are"} ambiguous` : ""}.`;
+    return enumerated(
+      `${list(firm, popNoun)} ${firm === 1 ? "has" : "have"} no ${absent.field.replace(/_/g, " ")} at all${ambiguous ? `, and ${ambiguous} more ${ambiguous === 1 ? "is" : "are"} ambiguous` : ""}.`
+    );
   }
 
   const statusEq = plan.filters.find((f) => f.field === "status" && f.op === "eq");
@@ -516,7 +541,10 @@ export function answerFor(plan: QueryPlan, exec: ExecResult, ctx: ExploreContext
     const noun = typeFilter
       ? `${(Array.isArray(typeFilter.value) ? typeFilter.value[0] : String(typeFilter.value)).toLowerCase()} contract`
       : "contract";
-    return `${list(direct, noun)} cap${direct === 1 ? "s" : ""} liability ${above ? "above" : "below"} ${fmtMoneyFull(Number(capBound.value))}${exec.relatedCount ? `; ${exec.relatedCount} more ${exec.relatedCount === 1 ? "has" : "have"} no readable cap at all` : ""}.`;
+    const base = enumerated(
+      `${list(direct, noun)} cap${direct === 1 ? "s" : ""} liability ${above ? "above" : "below"} ${fmtMoneyFull(Number(capBound.value))}.`
+    );
+    return `${base.replace(/\.$/, "")}${exec.relatedCount ? ` — ${exec.relatedCount} more ${exec.relatedCount === 1 ? "has" : "have"} no readable cap at all` : ""}.`;
   }
 
   const autoRenew = plan.filters.find((f) => f.field === "auto_renew" && f.op === "eq");
@@ -528,7 +556,9 @@ export function answerFor(plan: QueryPlan, exec: ExecResult, ctx: ExploreContext
 
   const law = plan.filters.find((f) => f.field === "governing_law" && f.op === "contains");
   if (law) {
-    return `${list(exec.rows.length, "contract")} ${exec.rows.length === 1 ? "is" : "are"} governed by ${String(law.value)} law.`;
+    return enumerated(
+      `${list(exec.rows.length, "contract")} ${exec.rows.length === 1 ? "is" : "are"} governed by ${String(law.value)} law.`
+    );
   }
 
   const present = plan.filters.find((f) => f.op === "present");
@@ -537,13 +567,17 @@ export function answerFor(plan: QueryPlan, exec: ExecResult, ctx: ExploreContext
     const label = present.field.replace(/_/g, " ");
     if (present.field === "exclusivity") {
       return exec.rows.length
-        ? `${list(exec.rows.length, "contract")} grant${exec.rows.length === 1 ? "s" : ""} exclusivity — check the territory scope before signing anything nearby.`
+        ? enumerated(
+            `${list(exec.rows.length, "contract")} grant${exec.rows.length === 1 ? "s" : ""} exclusivity — check the territory scope before signing anything nearby.`
+          )
         : "No exclusivity obligations found in the portfolio.";
     }
-    return `${list(exec.rows.length, "contract")} ${exec.rows.length === 1 ? "has" : "have"} notable ${label} terms${flagged ? ` — including ${flagged} flagged as unusual or one-sided` : ""}.`;
+    return enumerated(
+      `${list(exec.rows.length, "contract")} ${exec.rows.length === 1 ? "has" : "have"} notable ${label} terms${flagged ? ` — including ${flagged} flagged as unusual or one-sided` : ""}.`
+    );
   }
 
-  return `${list(exec.rows.length, popNoun)} match${exec.rows.length === 1 ? "es" : ""}.`;
+  return enumerated(`${list(exec.rows.length, popNoun)} match${exec.rows.length === 1 ? "es" : ""}.`);
 }
 
 // ---- the inspectable plan line ----

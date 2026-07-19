@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { validatePlan } from "@/lib/explore/plan";
 import {
   buildSystemInstruction,
+  GEMINI_MODEL,
   PLAN_RESPONSE_SCHEMA,
 } from "@/lib/explore/gemini-prompt";
 
@@ -11,10 +12,6 @@ import {
 // effective state (which includes the local verification overlay this server
 // can't see). Any failure degrades to {engine:"fallback"} and the client's
 // deterministic matcher takes over; the app runs fully without a key.
-
-/** The one place the model id lives. gemini-flash-latest also works; we pin
- * the current GA Flash explicitly so behavior doesn't shift under us. */
-const GEMINI_MODEL = "gemini-3.5-flash";
 
 // Warm calls run 2–4s; the budget leaves headroom for cold starts without
 // letting a hung call stall the page (the client aborts at 10s regardless).

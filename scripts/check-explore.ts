@@ -119,6 +119,32 @@ if (!coerced.ok || coerced.plan.filters[0].value !== 1_000_000 || coerced.plan.f
   console.log("✓ string values coerce to number/boolean");
 }
 
+// The numbers guardrail: prose may only state figures present in the
+// retrieved context; one invented number kills the sentence.
+import { proseNumbersAreGrounded, type AnswerContext } from "../src/lib/explore/answer-context";
+const GUARD_CTX: AnswerContext = {
+  rows: [
+    { contractId: "c-005", contract: "SOW #1", counterparty: "Torvane Consulting Group LLC", values: [{ field: "Total contract value", value: "$456,000" }] },
+    { contractId: "c-006", contract: "SOW #2", counterparty: "Torvane Consulting Group LLC", values: [{ field: "Total contract value", value: "$2,088,000" }] },
+  ],
+  aggregate: { fn: "sum", value: "$2,544,000", count: 3 },
+  interpretation: "sum(total_value)",
+  truncated: false,
+};
+const GUARD_CASES: [string, string, boolean][] = [
+  ["verbatim figures + trailing period", "Our total exposure is $2,544,000. SOW #1 is $456,000 and SOW #2 is $2,088,000.", true],
+  ["invented total", "Our total exposure is $2,600,000 across these contracts.", false],
+  ["recomputed/rounded figure", "That's about $2.5M in total.", false],
+  ["small counts allowed", "3 contracts with Torvane make up the total of $2,544,000.", true],
+];
+for (const [label, prose, expected] of GUARD_CASES) {
+  if (proseNumbersAreGrounded(prose, GUARD_CTX) !== expected) {
+    failures++;
+    console.error(`✗ guardrail: ${label} (expected ${expected})`);
+  }
+}
+console.log("✓ prose numbers guardrail");
+
 // The inspectable plan line stays human-readable.
 const golden = buildFallbackPlan("Which vendor contracts have a liability cap below $1M?", ctx);
 const goldenLine = golden ? describePlan(golden) : "";
