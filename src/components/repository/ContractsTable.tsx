@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusChip } from "@/components/repository/StatusChip";
 import type { EffectiveContract } from "@/lib/selectors";
-import { fmtMoneyFull, fmtDateShort, fmtRelative } from "@/lib/format";
+import { fmtDate, fmtMoneyFull, fmtDateShort, fmtRelative } from "@/lib/format";
 import { daysFromToday } from "@/lib/demo-clock";
 import { cn } from "@/lib/utils";
 
@@ -60,11 +60,12 @@ export function ContractsTable({ rows }: { rows: EffectiveContract[] }) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="w-[34%]">Contract</TableHead>
+            <TableHead className="w-[30%]">Contract</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Value</TableHead>
             <TableHead>Renewal</TableHead>
+            <TableHead>Added</TableHead>
             <TableHead className="text-right">Review</TableHead>
           </TableRow>
         </TableHeader>
@@ -85,6 +86,9 @@ export function ContractsTable({ rows }: { rows: EffectiveContract[] }) {
                 {r.contract.valueUsd > 0 ? fmtMoneyFull(r.contract.valueUsd) : "—"}
               </TableCell>
               <TableCell className="text-[12.5px]"><RenewalCell c={r} /></TableCell>
+              <TableCell className="text-[12.5px] tabular-nums text-muted-foreground">
+                {fmtDate(r.contract.ingestedAt)}
+              </TableCell>
               <TableCell className="text-right">
                 {r.openReviewCount > 0 && (
                   <Badge
