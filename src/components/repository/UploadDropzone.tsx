@@ -196,17 +196,21 @@ export function UploadDropzone() {
             PDF or Word — terms, dates, and obligations extracted on arrival
           </p>
         </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,.doc,.docx"
-          className="hidden"
-          onChange={(e) => {
-            handleFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
       </div>
+      {/* Kept OUTSIDE the clickable area: if the input lived inside it, its
+          click would bubble back up and re-trigger input.click() while the
+          picker is opening — Chrome's double-open guard then closes it. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => {
+          handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
 
       {jobs.map((job) => (
         <div
