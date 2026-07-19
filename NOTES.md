@@ -23,11 +23,20 @@ right-side slide-in panels. Judgment calls:
   defines `ExtractionEngine`; the Phase-1 `MockExtractionEngine` never reads file
   bytes and materializes pre-authored contracts from `src/data/upload-queue`. A real
   parser drops in behind the same interface without touching UI code.
-- Explore is a deterministic pattern matcher (`lib/explore/engine.ts`), not an LLM.
-  It emits an interpretation line + computed answer + cited rows, all evaluated
-  against *effective* state (so corrections change answers). Unmatched questions get
-  a scope card with guaranteed-answerable suggestions — never a fake answer.
-  `scripts/check-explore.ts` locks 15 canonical questions.
+- Explore has two question readers and ONE answerer. Both Google Gemini
+  (`/api/ask`, model pinned in `route.ts`) and the deterministic pattern matcher
+  (`lib/explore/engine.ts`) translate a question into the same validated
+  **QueryPlan** DSL (`lib/explore/plan.ts`); a shared local engine
+  (`lib/explore/execute.ts`) executes plans against *effective* state, so answers
+  are computed facts with provenance — the model never emits values or prose.
+  Plans are validated twice (server before returning, client before executing).
+  The server can't see the localStorage verification overlay, which is exactly why
+  translation is the only thing it does. No key / timeout (5s) / invalid plan /
+  out-of-scope → deterministic fallback; unmatched questions get a scope card with
+  guaranteed-answerable suggestions — never a fake answer. `npm run check-explore`
+  locks 15 canonical questions plus DSL conformance and hostile-plan rejection.
+  Money aggregates report low-confidence value explicitly ("$X of that rests on N
+  low-confidence terms") — nothing is silently folded into a total.
 - Confidence scores are hand-tuned: clean digital docs 0.92–0.98, derived fields
   0.75–0.90 (always with a computation note), the scanned 2019 Kearns agreement
   0.33–0.72. `< 0.75` is the needs-review line everywhere.

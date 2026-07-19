@@ -12,10 +12,27 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. No database, no API keys — the workspace ships with a
-fully populated contract portfolio for **Vantora Labs, Inc.** (a Denver climate-risk
-analytics company) and holds all of your actions in browser storage.
+Open http://localhost:3000. No database, no API keys required — the workspace ships
+with a fully populated contract portfolio for **Vantora Labs, Inc.** (a Denver
+climate-risk analytics company) and holds all of your actions in browser storage.
 **Settings → Workspace data → Reset workspace** restores the pristine state.
+
+### Optional: live AI for Explore (Gemini)
+
+Explore works out of the box on a built-in pattern matcher. To let it understand
+free-form phrasings, add a Google Gemini key (free at
+[aistudio.google.com](https://aistudio.google.com)):
+
+```bash
+cp .env.local.example .env.local   # then paste your key into GEMINI_API_KEY
+```
+
+The model only translates your question into a small, validated query plan — it
+never produces the answer. The plan is executed locally against the contract data,
+so every result stays a cited, verifiable fact, and the footer under each answer
+tells you which engine read your question. No key, a timeout, or an invalid plan
+all degrade silently to the pattern matcher. Your key stays in `.env.local`,
+which is never committed.
 
 > The workspace clock is frozen at **July 19, 2026** so that relative dates
 > ("notice due in 13 days") stay meaningful.

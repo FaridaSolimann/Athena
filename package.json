@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check-seed": "tsx scripts/check-seed.ts"
+    "check-seed": "tsx scripts/check-seed.ts",
+    "check-explore": "tsx scripts/check-explore.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.12.0",
     "@tabler/icons-react": "^3.45.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

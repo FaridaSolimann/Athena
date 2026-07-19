@@ -1,7 +1,13 @@
 // Validate the Explore matcher against the corpus test set.
-// Run: npx tsx scripts/check-explore.ts
+// Run: npm run check-explore
 import { ALL_CONTRACTS } from "../src/data";
-import { runExplore, type ExploreContext } from "../src/lib/explore/engine";
+import {
+  buildFallbackPlan,
+  runExplore,
+  type ExploreContext,
+} from "../src/lib/explore/engine";
+import { validatePlan } from "../src/lib/explore/plan";
+import { describePlan } from "../src/lib/explore/execute";
 
 const ctx: ExploreContext = {
   // Everything except the spare — mirrors post-upload demo state.
@@ -59,6 +65,68 @@ if (none) {
   console.error(`✗ off-topic question unexpectedly matched: ${none.interpretation}`);
 } else {
   console.log("✓ off-topic question falls to scope card");
+}
+
+// Every fallback plan must pass the same validation Gemini plans face —
+// the matcher is a permanent conformance test of the DSL.
+for (const c of CASES) {
+  const plan = buildFallbackPlan(c.q, ctx);
+  if (!plan) {
+    failures++;
+    console.error(`✗ no fallback plan for: ${c.q}`);
+    continue;
+  }
+  const v = validatePlan(plan);
+  if (!v.ok) {
+    failures++;
+    console.error(`✗ fallback plan fails validation for "${c.q}": ${v.error}`);
+  }
+}
+console.log("✓ all fallback plans pass validatePlan");
+
+// Hostile/malformed plans must be rejected (what a misbehaving model sends).
+const BAD_PLANS: [string, unknown][] = [
+  ["unknown field", { intent: "filter", filters: [{ field: "salary", op: "gt", value: "1" }], show: [] }],
+  ["unknown op", { intent: "filter", filters: [{ field: "total_value", op: "regex", value: ".*" }], show: [] }],
+  ["bad intent", { intent: "delete", filters: [{ field: "total_value", op: "gt", value: "1" }], show: [] }],
+  ["unsupported flag", { unsupported: true }],
+  ["non-object", "DROP TABLE contracts"],
+  ["empty plan", { intent: "filter", filters: [], show: ["total_value"] }],
+  ["oversize window", { intent: "filter", filters: [{ field: "expiration_date", op: "within_days", value: "99999" }], show: [] }],
+];
+for (const [label, bad] of BAD_PLANS) {
+  const v = validatePlan(bad);
+  if (v.ok) {
+    failures++;
+    console.error(`✗ bad plan accepted: ${label}`);
+  }
+}
+console.log("✓ malformed plans are rejected");
+
+// Value coercion: models send strings.
+const coerced = validatePlan({
+  intent: "filter",
+  filters: [
+    { field: "liability_cap", op: "lt", value: "1000000" },
+    { field: "auto_renew", op: "eq", value: "true" },
+  ],
+  show: ["liability_cap"],
+});
+if (!coerced.ok || coerced.plan.filters[0].value !== 1_000_000 || coerced.plan.filters[1].value !== true) {
+  failures++;
+  console.error("✗ string values not coerced to number/boolean");
+} else {
+  console.log("✓ string values coerce to number/boolean");
+}
+
+// The inspectable plan line stays human-readable.
+const golden = buildFallbackPlan("Which vendor contracts have a liability cap below $1M?", ctx);
+const goldenLine = golden ? describePlan(golden) : "";
+if (goldenLine !== "liability_cap < $1,000,000 AND contract_type = Vendor or SaaS") {
+  failures++;
+  console.error(`✗ describePlan golden mismatch: "${goldenLine}"`);
+} else {
+  console.log("✓ describePlan golden line");
 }
 
 console.log(failures ? `\nFAIL — ${failures}` : "\nAll explore cases pass.");

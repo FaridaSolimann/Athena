@@ -1,20 +1,32 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Sparkles, CornerDownLeft } from "lucide-react";
+import { Search, Sparkles, CornerDownLeft, LoaderCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { runExplore, type ExploreContext } from "@/lib/explore/engine";
+import {
+  buildFallbackPlan,
+  runPlan,
+  type ExploreContext,
+} from "@/lib/explore/engine";
+import { validatePlan, type QueryPlan } from "@/lib/explore/plan";
 import { SUGGESTED_QUESTIONS } from "@/lib/explore/suggestions";
 import { ResultCard } from "@/components/explore/ResultCard";
 import { useEffectiveContracts } from "@/lib/selectors";
 import { useOverlay } from "@/lib/store";
 
+type Asked =
+  | { plan: QueryPlan; engine: "gemini" | "fallback" }
+  | { plan: null; engine: "fallback" };
+
 function ExploreInner() {
   const params = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [asked, setAsked] = useState(params.get("q") ?? "");
+  const [asked, setAsked] = useState<string>("");
+  const [outcome, setOutcome] = useState<Asked | null>(null);
+  const [loading, setLoading] = useState(false);
+  const requestRef = useRef(0);
   const verifications = useOverlay((s) => s.fieldVerifications);
   const recentQueries = useOverlay((s) => s.recentQueries);
   const pushRecentQuery = useOverlay((s) => s.pushRecentQuery);
@@ -24,16 +36,71 @@ function ExploreInner() {
     () => ({ contracts: effective.map((e) => e.contract), verifications }),
     [effective, verifications]
   );
+  const ctxRef = useRef(ctx);
+  ctxRef.current = ctx;
 
-  const result = useMemo(() => (asked ? runExplore(asked, ctx) : null), [asked, ctx]);
-
-  const ask = (q: string) => {
+  const ask = async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) return;
     setQuery(trimmed);
     setAsked(trimmed);
     pushRecentQuery(trimmed);
+    setLoading(true);
+    const requestId = ++requestRef.current;
+
+    // Ask the server to translate the question into a plan (Gemini). Any
+    // failure — no key, timeout, invalid plan — falls back to the local
+    // pattern matcher. Execution is always local either way.
+    let plan: QueryPlan | null = null;
+    let engine: "gemini" | "fallback" = "fallback";
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6_500);
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (data?.engine === "gemini" && data.plan) {
+        const v = validatePlan(data.plan); // never trust the wire
+        if (v.ok) {
+          plan = v.plan;
+          engine = "gemini";
+        }
+      }
+    } catch {
+      // network/timeout — fall through to the matcher
+    }
+
+    if (requestId !== requestRef.current) return; // a newer question superseded us
+
+    if (!plan) {
+      plan = buildFallbackPlan(trimmed, ctxRef.current);
+      engine = "fallback";
+    }
+    setOutcome(plan ? { plan, engine } : { plan: null, engine: "fallback" });
+    setLoading(false);
   };
+
+  // Support deep links like /explore?q=…
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    const q = params.get("q");
+    if (q) void ask(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-execute the current plan whenever effective state changes — verifying
+  // or correcting a term updates the answer without re-asking.
+  const result = useMemo(
+    () => (outcome?.plan ? runPlan(outcome.plan, ctx) : null),
+    [outcome, ctx]
+  );
 
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-8">
@@ -51,16 +118,26 @@ function ExploreInner() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && ask(query)}
+          onKeyDown={(e) => e.key === "Enter" && !loading && ask(query)}
           placeholder="e.g. Which vendor contracts have a liability cap below $1M?"
           className="h-11 pl-10 pr-24 text-[14px]"
         />
         <Button
           onClick={() => ask(query)}
+          disabled={loading}
           className="absolute right-1.5 top-1/2 h-8 -translate-y-1/2 px-3 text-xs"
         >
-          Ask
-          <CornerDownLeft className="size-3" />
+          {loading ? (
+            <>
+              Reading
+              <LoaderCircle className="size-3 animate-spin" />
+            </>
+          ) : (
+            <>
+              Ask
+              <CornerDownLeft className="size-3" />
+            </>
+          )}
         </Button>
       </div>
 
@@ -101,15 +178,23 @@ function ExploreInner() {
         </div>
       )}
 
-      {asked && result && (
+      {asked && !loading && result && outcome && (
         <div className="mt-5">
           <p className="text-[11.5px] text-muted-foreground">
-            Read as: {result.interpretation}
+            Read as:{" "}
+            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+              {result.interpretation}
+            </span>
           </p>
           <div className="mt-2 rounded-lg border border-primary/25 bg-accent/60 p-4">
             <p className="text-[14.5px] font-semibold leading-relaxed">{result.answer}</p>
           </div>
-          <div className="mt-3 grid gap-2">
+          <p className="mt-1.5 text-right text-[11px] text-muted-foreground">
+            {outcome.engine === "gemini"
+              ? "answered by Gemini — plan executed locally against your contracts"
+              : "answered by pattern matching (no API key)"}
+          </p>
+          <div className="mt-2 grid gap-2">
             {result.rows.map((row, i) => (
               <ResultCard key={`${row.contractId}-${i}`} row={row} />
             ))}
@@ -122,7 +207,7 @@ function ExploreInner() {
         </div>
       )}
 
-      {asked && !result && (
+      {asked && !loading && outcome && !outcome.plan && (
         <div className="mt-5 rounded-lg border p-5">
           <p className="text-[13.5px] font-medium">
             Athena couldn't map that question to the contract data.
