@@ -4,8 +4,11 @@ import { use, useMemo } from "react";
 import { useSearchParams, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useEffectiveContract } from "@/lib/selectors";
 import { StatusChip } from "@/components/repository/StatusChip";
+import { CreateItemDialog } from "@/components/tasks/CreateItemDialog";
 import { AtAGlance } from "@/components/contract/AtAGlance";
 import { FactGrid } from "@/components/contract/FactGrid";
 import { ObligationsList } from "@/components/contract/ObligationsList";
@@ -60,9 +63,20 @@ export default function ContractDetailPage({
             <StatusChip status={status} />
           </p>
         </div>
-        <p className="shrink-0 text-xs text-muted-foreground">
-          Added {fmtDate(contract.ingestedAt)}
-        </p>
+        <div className="flex shrink-0 items-center gap-3">
+          <p className="text-xs text-muted-foreground">
+            Added {fmtDate(contract.ingestedAt)}
+          </p>
+          <CreateItemDialog
+            defaultContractId={contract.id}
+            trigger={
+              <Button variant="outline" className="h-8 px-3 text-[13px]">
+                <Plus className="size-3.5" />
+                Task / Alert
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] gap-6">

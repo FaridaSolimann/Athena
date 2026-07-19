@@ -9,8 +9,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useWorkItems } from "@/lib/selectors";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { TasksAlertsTable } from "@/components/tasks/TasksAlertsTable";
-import { CreateAlertDialog } from "@/components/tasks/CreateAlertDialog";
+import { CreateItemDialog } from "@/components/tasks/CreateItemDialog";
 import { useTeams } from "@/lib/teams";
 import { USERS } from "@/data";
 import { daysFromToday } from "@/lib/demo-clock";
@@ -68,7 +70,14 @@ export default function TasksPage() {
             contracts themselves.
           </p>
         </div>
-        <CreateAlertDialog />
+        <CreateItemDialog
+          trigger={
+            <Button className="h-8 px-3 text-[13px]">
+              <Plus className="size-3.5" />
+              Create
+            </Button>
+          }
+        />
       </div>
 
       <div className="mb-3 flex items-center gap-2">

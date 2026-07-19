@@ -7,6 +7,8 @@ import {
   SquareCheckBig,
   ChevronRight,
   ArrowUpRight,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import {
   Table,
@@ -91,7 +93,7 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
         </TableHeader>
         <TableBody>
           {items.map((item) => {
-            const contract = getContract(item.contractId);
+            const contract = item.contractId ? getContract(item.contractId) : undefined;
             const isOpen = expanded === item.id;
             const awaiting = item.needsApproval && item.approvalStatus === "awaiting";
             return (
@@ -126,7 +128,7 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
                       {item.title}
                     </p>
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {contract?.title}
+                      {contract?.title ?? (item.manual ? "No linked contract" : null)}
                       {awaiting && (
                         <span className="ml-2 rounded-full bg-trust-medium-bg px-1.5 py-0.5 text-[10.5px] font-medium text-trust-medium">
                           Awaiting approval
@@ -135,6 +137,24 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
                       {item.manual && (
                         <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10.5px] font-medium">
                           Manual
+                        </span>
+                      )}
+                      {item.notifyChannels?.includes("slack") && (
+                        <span
+                          title="Notifies via Slack (preview — connect in Settings)"
+                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-0.5 text-[10.5px] font-medium text-accent-foreground"
+                        >
+                          <MessageSquare className="size-2.5" />
+                          Slack
+                        </span>
+                      )}
+                      {item.notifyChannels?.includes("email") && (
+                        <span
+                          title="Notifies via Email (preview — connect in Settings)"
+                          className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-accent px-1.5 py-0.5 text-[10.5px] font-medium text-accent-foreground"
+                        >
+                          <Mail className="size-2.5" />
+                          Email
                         </span>
                       )}
                     </p>
@@ -182,12 +202,12 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
                       <p className="max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
                         {item.detail}
                       </p>
-                      {item.fieldIds && item.fieldIds.length > 0 && (
+                      {item.contractId && item.fieldIds && item.fieldIds.length > 0 && (
                         <div className="mt-3 grid max-w-2xl gap-2">
                           {item.fieldIds.map((fid) => (
                             <TrustedFact
                               key={fid}
-                              contractId={item.contractId}
+                              contractId={item.contractId!}
                               fieldId={fid}
                               variant="review"
                               showVerify={awaiting}
@@ -197,13 +217,15 @@ export function TasksAlertsTable({ items }: { items: WorkItem[] }) {
                       )}
                       <div className="mt-3 flex items-center gap-3">
                         <ApprovalActions item={item} />
-                        <Link
-                          href={`/contracts/${item.contractId}`}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                        >
-                          Open contract
-                          <ArrowUpRight className="size-3" />
-                        </Link>
+                        {item.contractId && (
+                          <Link
+                            href={`/contracts/${item.contractId}`}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                          >
+                            Open contract
+                            <ArrowUpRight className="size-3" />
+                          </Link>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

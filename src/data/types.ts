@@ -196,7 +196,8 @@ export type Priority = "critical" | "high" | "medium" | "low";
 export interface WorkItem {
   id: string; // deterministic, e.g. "alert:c-001:renewal-notice"
   kind: WorkItemKind;
-  contractId: string;
+  /** Absent on manual items not tied to a contract. */
+  contractId?: string;
   title: string;
   detail: string;
   dueDate?: ISODate;
@@ -208,4 +209,8 @@ export interface WorkItem {
   /** Fields this item is about (verify-tasks); drives approval↔verification linkage. */
   fieldIds?: string[];
   manual?: boolean;
+  /** Free-text notes on manual tasks. */
+  notes?: string;
+  /** Placeholder channel routing for alerts — UI only, nothing is sent. */
+  notifyChannels?: ("slack" | "email")[];
 }

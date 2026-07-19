@@ -15,7 +15,8 @@ export function ApprovalActions({ item }: { item: WorkItem }) {
   const verifications = useOverlay((s) => s.fieldVerifications);
   const overrideWorkItem = useOverlay((s) => s.overrideWorkItem);
 
-  if (!item.needsApproval || item.approvalStatus !== "awaiting") return null;
+  if (!item.needsApproval || item.approvalStatus !== "awaiting" || !item.contractId)
+    return null;
   const contract = getContract(item.contractId);
   const pending = (item.fieldIds ?? []).filter(
     (id) =>
