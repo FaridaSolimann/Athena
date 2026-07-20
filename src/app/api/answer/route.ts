@@ -13,6 +13,8 @@ import {
 // The client additionally rejects any prose whose numbers aren't in the
 // context it sent (see proseNumbersAreGrounded).
 
+export const maxDuration = 30;
+
 const TIMEOUT_MS = 8_000;
 
 export async function POST(request: Request) {

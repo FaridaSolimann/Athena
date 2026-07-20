@@ -14,6 +14,8 @@ import { assembleContract, type RawExtraction } from "@/lib/extraction/assemble"
 // any failure) it falls back to the pre-authored queue so a demo never dies.
 
 export const runtime = "nodejs";
+// Real extractions run 15-25s; don't let serverless defaults kill them.
+export const maxDuration = 60;
 
 const TIMEOUT_MS = 30_000;
 const MAX_TEXT_CHARS = 60_000;
