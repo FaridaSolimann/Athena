@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PortfolioTab } from "@/components/insights/PortfolioTab";
 import { ExposureTab } from "@/components/insights/ExposureTab";
@@ -17,10 +17,13 @@ type Tab = (typeof TABS)[number];
 
 function InsightsInner() {
   const params = useSearchParams();
-  const router = useRouter();
-  const tab: Tab = (TABS as readonly string[]).includes(params.get("tab") ?? "")
-    ? (params.get("tab") as Tab)
-    : "timeline";
+  // Tab switching is purely client-side (deep links still work via ?tab=);
+  // routing through the server for a view toggle would stall if it's slow.
+  const [tab, setTab] = useState<Tab>(() =>
+    (TABS as readonly string[]).includes(params.get("tab") ?? "")
+      ? (params.get("tab") as Tab)
+      : "timeline"
+  );
 
   const effective = useEffectiveContracts();
   const verifications = useOverlay((s) => s.fieldVerifications);
@@ -43,7 +46,11 @@ function InsightsInner() {
 
       <Tabs
         value={tab}
-        onValueChange={(v) => router.replace(`/insights?tab=${v}`, { scroll: false })}
+        onValueChange={(v) => {
+          setTab(v as Tab);
+          // keep the URL shareable without a server round-trip
+          window.history.replaceState(null, "", `/insights?tab=${v}`);
+        }}
       >
         <TabsList className="mb-4">
           <TabsTrigger value="timeline">Obligations Timeline</TabsTrigger>
